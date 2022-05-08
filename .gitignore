@@ -48,3 +48,6 @@ Thumbs.db
 *.mov
 *.wmv
 
+*.txt
+mbf-benchmark
+mbf-benchmark-debug

@@ -49,5 +49,7 @@ Thumbs.db
 *.wmv
 
 *.txt
+*.out
 mbf-benchmark
 mbf-benchmark-debug
+db_working_home/

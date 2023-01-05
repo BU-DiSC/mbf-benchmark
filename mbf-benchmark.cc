@@ -29,12 +29,12 @@ std::string workloadPath = "./workload.txt";
 std::string kDBPath = "./db_working_home";
 QueryTracker query_stats;
 
-int num_lookup_threads = 1;
+//int num_lookup_threads = 1;
 double ucpu_pct = 0.0;
 double scpu_pct = 0.0;
 uint64_t warmup_queries = 0;
 bool warmup = true;
-std::vector<std::thread*> lookup_threads_pool;
+//std::vector<std::thread*> lookup_threads_pool;
 std::atomic<int> atomic_lookup_counter (0); 
 std::mutex mtx;
 DB* db = nullptr;
@@ -252,6 +252,8 @@ void configOptions(EmuEnv* _env, Options *op, BlockBasedTableOptions *table_op, 
 
   //TableOptions
   table_op->no_block_cache = _env->no_block_cache; // TBC
+  table_op->util_threshold_1 = _env->util_threshold1;
+  table_op->util_threshold_2 = _env->util_threshold2;
   if(table_op->no_block_cache){
      _env->block_cache_capacity = 0;
   }else{
@@ -502,7 +504,9 @@ void db_point_lookup(const ReadOptions *read_op, const std::string key, const in
     //SetPerfLevel(kEnableTimeExceptForMutex);
     if(!_warmup){
     SetPerfLevel(rocksdb::PerfLevel::kEnableTime);
+    int tmp_num_point_lookups = get_perf_context()->num_point_lookups;
     get_perf_context()->Reset();
+    get_perf_context()->num_point_lookups = tmp_num_point_lookups;
     get_iostats_context()->Reset();
     get_perf_context()->EnablePerLevelPerfContext();
     }
@@ -599,13 +603,14 @@ int runWorkload(const EmuEnv* _env, const Options *op, const BlockBasedTableOpti
         ++counter;
         assert(counter = qd.seq);
         if (query_track->inserts_completed == wd->actual_insert_num) break;
+	/*
         for(size_t k = 0; k < lookup_threads_pool.size(); k++){
             if(lookup_threads_pool[k] != nullptr){
                 lookup_threads_pool[k]->join();
      	        delete lookup_threads_pool[k];
                 lookup_threads_pool[k] = nullptr;
             }
-        }
+        }*/
         entry_ptr = dynamic_cast<Entry*>(qd.entry_ptr);
         key = entry_ptr->key;
         value = entry_ptr->value;
@@ -630,13 +635,14 @@ int runWorkload(const EmuEnv* _env, const Options *op, const BlockBasedTableOpti
         entry_ptr = dynamic_cast<Entry*>(qd.entry_ptr);
         key = entry_ptr->key;
         value = entry_ptr->value;
+	/*
         for(size_t k = 0; k < lookup_threads_pool.size(); k++){
             if(lookup_threads_pool[k] != nullptr){
             lookup_threads_pool[k]->join();
      	    delete lookup_threads_pool[k];
             lookup_threads_pool[k] = nullptr;
 		}
-        }
+        }*/
         if (_env->verbosity == 2)
           std::cout << static_cast<char>(qd.type) << " " << key << " " << value << "" << std::endl;
         if (my_clock_get_time(&start_clock) == -1)
@@ -656,13 +662,14 @@ int runWorkload(const EmuEnv* _env, const Options *op, const BlockBasedTableOpti
         ++counter;
         assert(counter = qd.seq);
         key = qd.entry_ptr->key;
+	/*
         for(size_t k = 0; k < lookup_threads_pool.size(); k++){
             if(lookup_threads_pool[k] != nullptr){
                 lookup_threads_pool[k]->join();
      	        delete lookup_threads_pool[k];
                 lookup_threads_pool[k] = nullptr;
 	    }
-        } 
+        } */
         if (_env->verbosity == 2)
           std::cout << static_cast<char>(qd.type) << " " << key << "" << std::endl;
         if (my_clock_get_time(&start_clock) == -1)
@@ -680,13 +687,14 @@ int runWorkload(const EmuEnv* _env, const Options *op, const BlockBasedTableOpti
       case RANGE_DELETE:
         ++counter;
         assert(counter = qd.seq);
+	/*
         for(size_t k = 0; k < lookup_threads_pool.size(); k++){
             if(lookup_threads_pool[k] != nullptr){
                 lookup_threads_pool[k]->join();
      	        delete lookup_threads_pool[k];
                 lookup_threads_pool[k] = nullptr;
 	    }
-        }
+        }*/
         rentry_ptr = dynamic_cast<RangeEntry*>(qd.entry_ptr);
         start_key = rentry_ptr->key;
         end_key = rentry_ptr->end_key;
@@ -711,6 +719,7 @@ int runWorkload(const EmuEnv* _env, const Options *op, const BlockBasedTableOpti
         // if (query_track->point_lookups_completed + query_track->zero_point_lookups_completed >= 10) break;
         key = qd.entry_ptr->key;
 	if(warmup){
+		/*
         	thread_index = atomic_lookup_counter%num_lookup_threads;
         	if(atomic_lookup_counter.load(std::memory_order_relaxed) >= warmup_queries){
         	    warmup = false;
@@ -736,7 +745,13 @@ int runWorkload(const EmuEnv* _env, const Options *op, const BlockBasedTableOpti
 		    }
         	    lookup_threads_pool[thread_index] = new std::thread(db_point_lookup, read_op, key, _env->verbosity, query_track, warmup);
         	}
-        	atomic_lookup_counter++;
+        	atomic_lookup_counter++;*/
+
+		db_point_lookup(read_op, key, _env->verbosity, query_track, true);
+		atomic_lookup_counter++;
+        	if(atomic_lookup_counter.load(std::memory_order_relaxed) >= warmup_queries){
+			warmup = false;
+		}
 	}else{
 		db_point_lookup(read_op, key, _env->verbosity, query_track, false);
 	}
@@ -783,14 +798,15 @@ int runWorkload(const EmuEnv* _env, const Options *op, const BlockBasedTableOpti
     }
     showProgress(wd->total_num, counter, mini_counter);
   }
-  
+ 
+   /* 
   for(std::thread* t: lookup_threads_pool){
      if(t != nullptr){
         t->join();
         delete t;
      }
   } 
-  lookup_threads_pool.clear();
+  lookup_threads_pool.clear();*/
   if(cpu_sample_counter == 0) cpu_sample_counter = 1;
   query_track->ucpu_pct += ucpu_pct/cpu_sample_counter;
   query_track->scpu_pct += scpu_pct/cpu_sample_counter;
@@ -839,7 +855,9 @@ int parse_arguments2(int argc, char *argv[], EmuEnv* _env) {
   args::Flag destroy_cmd(group4, "destroy_db", "Destroy and recreate the database", {"dd", "destroy_db"});
   args::Flag direct_reads_cmd(group4, "use_direct_reads", "Use direct reads", {"dr", "use_direct_reads"});
   args::ValueFlag<int> verbosity_cmd(group4, "verbosity", "The verbosity level of execution [0,1,2; def: 0]", {'V', "verbosity"});
-  args::ValueFlag<int> num_lookup_threads_cmd(group4, "num_lookup_threads", "The number of threads for point lookup", {'t', "num_lookup_threads"});
+  //args::ValueFlag<int> num_lookup_threads_cmd(group4, "num_lookup_threads", "The number of threads for point lookup", {'t', "num_lookup_threads"});
+  args::ValueFlag<double> util_threshold1_cmd(group4, "util_threshold1", "the threshold of utility to determine if the first filter module should be used or none modules should be used", {"th1", "util_threashold1"});
+  args::ValueFlag<double> util_threshold2_cmd(group4, "util_threshold2", "the threshold of utility to determine if the first filter module should be used or both modules should be used", {"th2", "util_threashold2"});
   args::ValueFlag<std::string> path_cmd(group4, "path", "path for writing the DB and all the metadata files", {'p', "path"});
   args::ValueFlag<std::string> wpath_cmd(group4, "wpath", "path for workload files", {"wp", "wpath"});
   args::ValueFlag<int> num_levels_cmd(group1, "L", "The number of levels to fill up with data [def: -1]", {'L', "num_levels"});
@@ -874,7 +892,9 @@ int parse_arguments2(int argc, char *argv[], EmuEnv* _env) {
   _env->file_to_memtable_size_ratio = file_to_memtable_size_ratio_cmd ? args::get(file_to_memtable_size_ratio_cmd) : 1;
   _env->file_size = file_size_cmd ? args::get(file_size_cmd) : _env->file_to_memtable_size_ratio * _env-> buffer_size;
   _env->verbosity = verbosity_cmd ? args::get(verbosity_cmd) : 0;
-  num_lookup_threads = num_lookup_threads_cmd ? args::get(num_lookup_threads_cmd) : 1;
+  _env->util_threshold1 = util_threshold1_cmd ? args::get(util_threshold1_cmd) : 0.02;
+  _env->util_threshold2 = util_threshold2_cmd ? args::get(util_threshold2_cmd) : 0.02;
+  //num_lookup_threads = num_lookup_threads_cmd ? args::get(num_lookup_threads_cmd) : 1;
   _env->compaction_pri = compaction_pri_cmd ? args::get(compaction_pri_cmd) : 1;
   _env->compaction_style = compaction_style_cmd ? args::get(compaction_style_cmd) : 1;
   _env->partition_filters = partition_filter_cmd ? true : false;

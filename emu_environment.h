@@ -84,6 +84,8 @@ public:
     bool allow_whole_filter_skipping;
     double prefetch_bpk;
     bool bpk_bounded;
+    double util_threshold1;
+    double util_threshold2;
     uint16_t data_block_index_type;                             // 1: kDataBlockBinarySearch, 2: kDataBlockBinaryAndHash
     uint16_t index_type;                                        // 1: kBinarySearch, 2: kHashSearch, 3: kTwoLevelIndexSearch
     bool partition_filters;

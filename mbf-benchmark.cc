@@ -856,8 +856,8 @@ int parse_arguments2(int argc, char *argv[], EmuEnv* _env) {
   args::Flag direct_reads_cmd(group4, "use_direct_reads", "Use direct reads", {"dr", "use_direct_reads"});
   args::ValueFlag<int> verbosity_cmd(group4, "verbosity", "The verbosity level of execution [0,1,2; def: 0]", {'V', "verbosity"});
   //args::ValueFlag<int> num_lookup_threads_cmd(group4, "num_lookup_threads", "The number of threads for point lookup", {'t', "num_lookup_threads"});
-  args::ValueFlag<double> util_threshold1_cmd(group4, "util_threshold1", "the threshold of utility to determine if the first filter module should be used or none modules should be used", {"th1", "util_threashold1"});
-  args::ValueFlag<double> util_threshold2_cmd(group4, "util_threshold2", "the threshold of utility to determine if the first filter module should be used or both modules should be used", {"th2", "util_threashold2"});
+  args::ValueFlag<double> util_threshold1_cmd(group4, "util_threshold1", "the threshold of utility to determine if the whole filter modules should be used or not [def: 0.01]", {"th1", "util_threashold1"});
+  args::ValueFlag<double> util_threshold2_cmd(group4, "util_threshold2", "the threshold of utility to determine if the first filter module should be used or both modules should be used [def: 0.02]", {"th2", "util_threashold2"});
   args::ValueFlag<std::string> path_cmd(group4, "path", "path for writing the DB and all the metadata files", {'p', "path"});
   args::ValueFlag<std::string> wpath_cmd(group4, "wpath", "path for workload files", {"wp", "wpath"});
   args::ValueFlag<int> num_levels_cmd(group1, "L", "The number of levels to fill up with data [def: -1]", {'L', "num_levels"});
@@ -892,7 +892,7 @@ int parse_arguments2(int argc, char *argv[], EmuEnv* _env) {
   _env->file_to_memtable_size_ratio = file_to_memtable_size_ratio_cmd ? args::get(file_to_memtable_size_ratio_cmd) : 1;
   _env->file_size = file_size_cmd ? args::get(file_size_cmd) : _env->file_to_memtable_size_ratio * _env-> buffer_size;
   _env->verbosity = verbosity_cmd ? args::get(verbosity_cmd) : 0;
-  _env->util_threshold1 = util_threshold1_cmd ? args::get(util_threshold1_cmd) : 0.02;
+  _env->util_threshold1 = util_threshold1_cmd ? args::get(util_threshold1_cmd) : 0.01;
   _env->util_threshold2 = util_threshold2_cmd ? args::get(util_threshold2_cmd) : 0.02;
   //num_lookup_threads = num_lookup_threads_cmd ? args::get(num_lookup_threads_cmd) : 1;
   _env->compaction_pri = compaction_pri_cmd ? args::get(compaction_pri_cmd) : 1;
